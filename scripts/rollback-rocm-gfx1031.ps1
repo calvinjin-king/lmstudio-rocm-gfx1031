@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-  回滚 unlock-rocm-gfx1031.ps1 的全部改动。
+  Roll back every change made by unlock-rocm-gfx1031.ps1.
 #>
 param(
   [string]$LmStudioHome = "$env:USERPROFILE\.lmstudio",
@@ -15,14 +15,14 @@ $RT       = Join-Path $LmStudioHome "extensions\backends\llama.cpp-win-x86_64-am
 $VENDOR   = Join-Path $LmStudioHome 'extensions\backends\vendor\win-llama-rocm-vendor-v6\bin'
 $VendorDlls = @('amdhip64_7.dll','amd_comgr.dll','rocm_kpack.dll','hipblas.dll','rocsolver.dll','rocblas.dll','libhipblaslt.dll','origami.dll')
 
-Info "回滚引擎 ggml-hip.dll..."
+Info "restoring the engine ggml-hip.dll..."
 $hipBackup = Join-Path $RT 'ggml-hip.dll.orig'
 if (Test-Path $hipBackup) {
     Copy-Item $hipBackup (Join-Path $RT 'ggml-hip.dll') -Force
-    Ok "已还原官方原版 ggml-hip.dll"
-} else { Info "无备份（未打过补丁或已回滚）" }
+    Ok "official ggml-hip.dll restored"
+} else { Info "no backup found (never patched, or already rolled back)" }
 
-Info "还原 vendor 原始 DLL..."
+Info "restoring original vendor DLLs..."
 $vendorBackup = Join-Path $VENDOR 'gfx1031-unlock-backup'
 if (Test-Path $vendorBackup) {
     foreach ($d in $VendorDlls) {
@@ -30,18 +30,18 @@ if (Test-Path $vendorBackup) {
         if (Test-Path $bak) { Copy-Item $bak (Join-Path $VENDOR $d) -Force }
     }
     Remove-Item $vendorBackup -Recurse -Force
-    Ok "vendor 运行库已还原"
-} else { Info "无 vendor 备份" }
+    Ok "vendor runtime libs restored"
+} else { Info "no vendor backup found" }
 
-Info "移除补丁添加的 gfx103X 内核文件..."
+Info "removing the gfx103X kernel files added by the patch..."
 $libDst = Join-Path $VENDOR 'rocblas\library'
 if (Test-Path $libDst) {
     Get-ChildItem $libDst -File | Where-Object { $_.Name -match 'gfx1031|gfx1032|gfx1034|gfx1035|gfx1036' } |
         Remove-Item -Force
-    Ok "内核文件已清理"
+    Ok "kernel files cleaned"
 }
 
-Info "manifest 移除 gfx103X targets..."
+Info "removing gfx103X targets from the manifest..."
 $manifest = Join-Path $RT 'backend-manifest.json'
 if (Test-Path $manifest) {
     $j = Get-Content $manifest -Raw | ConvertFrom-Json
@@ -51,4 +51,4 @@ if (Test-Path $manifest) {
 }
 
 Write-Host ""
-Ok "回滚完成。本地缓存（%LOCALAPPDATA%\lmstudio-rocm-gfx1031-cache）已保留，如需彻底清理请手动删除。"
+Ok "rollback complete. The download cache (%LOCALAPPDATA%\lmstudio-rocm-gfx1031-cache) is kept; delete it manually if you want a full cleanup."
